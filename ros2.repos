@@ -1,0 +1,6 @@
+repositories: 
+  stretch4_ros2:
+    type: git
+    url: https://github.com/hello-robot/stretch4_ros2.git
+    version: jazzy
+
