@@ -22,7 +22,7 @@ YELLOW_BOLD="\033[1;33m"
 GREEN_BOLD="\033[1;32m"
 RESET="\033[0m"
 
-PACKAGE_NAME="nuclear_robotics_sim"
+PACKAGE_NAME="nuclear_robotics_sim_docker"
 ROS_DISTRO="jazzy"
 USER="nuclear_robot_sim"
 
