@@ -1,6 +1,9 @@
-repositories: 
+repositories:
   stretch4_ros2:
     type: git
     url: https://github.com/hello-robot/stretch4_ros2.git
-    version: jazzy
+    # PR #11 "Fix/stretch4 sim mujoco" head (branch fix/stretch4-sim-mujoco), pinned by SHA so an
+    # open PR getting new commits can't silently change the build. Bump deliberately, or switch
+    # back to `jazzy` once the PR merges. See memory: stretch4-ros2-patches.
+    version: b7869273d2f0f77483fb0c98def88570791cfd59
 

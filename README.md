@@ -77,7 +77,7 @@ vcs import ros2_ws/src < ros2.repos
 
 3. Build the Docker image:
 ```bash
-./.docker/build_image.sh
+./docker/build_image.sh
 ```
 
 This builds the image, compiles the full ROS 2 workspace inside the container, and copies the built workspace back to `ros2_ws/` on your host.
