@@ -7,6 +7,9 @@ The goal is to let a mobile robot navigate a room, build a map of the radiation 
 
 ## Introduction 
 
+<details open>
+<summary><i>Project overview — click to collapse / expand</i></summary>
+
 ### Two engines, one data boundary
 
 The system is built from two independent engines that never share a simulation loop. The only thing connecting them is data passed across a boundary.
@@ -52,6 +55,8 @@ navigation-constrained path generates the exact sampling pattern a real robot wo
 - **MuJoCo** for robot physics (version pinned by *Stretch4 MuJoCo*).
 - **Geant4** (built from source) for radiation transport 
 
+</details>
+
 ## Prerequisites
 
 Ensure the following are installed on your host machine:
@@ -60,6 +65,25 @@ Ensure the following are installed on your host machine:
   ```bash
   pip install vcstool
   ```
+* **NVIDIA Container Toolkit**: To allow hardware acceleration from inside the container
+
+## Host Setup
+
+### Host Machine Preparation (Crucial)
+
+CycloneDDS needs a large kernel receive buffer to reliably handle big trajectory
+messages without dropping packets. Configure the **host** kernel to allow it, or the
+container will crash on boot:
+
+```bash
+sudo sysctl -w net.core.rmem_max=2147483647
+```
+
+> The `-w` form is **not persistent** — it resets on reboot. To make it permanent:
+> ```bash
+> echo 'net.core.rmem_max=2147483647' | sudo tee /etc/sysctl.d/60-cyclonedds.conf
+> sudo sysctl --system
+> ```
 
 ## Installation & Setup
 
@@ -81,6 +105,39 @@ vcs import ros2_ws/src < ros2.repos
 ```
 
 This builds the image, compiles the full ROS 2 workspace inside the container, and copies the built workspace back to `ros2_ws/` on your host.
+
+## Verifying the Setup
+
+Start the container first:
+```bash
+./docker/run_container.sh
+```
+
+### 1. Robot base environment (Stretch 4 + MuJoCo)
+
+```bash
+ros2 launch stretch_simulation stretch_mujoco_driver.launch.py
+```
+The MuJoCo viewer should open with the Stretch 4 robot in the default scene. For the
+navigation-control variant, append `mode:=navigation use_mujoco_viewer:=true`.
+
+### 2. Geant4
+
+Confirm the toolchain, datasets, and visualization with the canonical example **B1**:
+```bash
+source /opt/geant4/bin/geant4.sh
+
+# locate the installed example (or clone it from the pinned Geant4 tag if not present)
+B1=$(dirname "$(find /opt/geant4 -name exampleB1.cc 2>/dev/null | head -1)")
+
+cmake -S "$B1" -B /tmp/B1-build && cmake --build /tmp/B1-build -j"$(nproc)"
+cd /tmp/B1-build
+
+./exampleB1 run1.mac     # batch: prints the cumulated dose in the scoring volume
+./exampleB1              # interactive: opens the Qt viewer; at Idle> type: /run/beamOn 100
+```
+A run summary with a **cumulated dose**, plus a viewer window showing the geometry and
+particle tracks, confirms Geant4 is fully functional end-to-end.
 
 ---
 
