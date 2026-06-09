@@ -12,10 +12,57 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+ARG ROS_DISTRO=jazzy
+
+##############################################################################
+##                          Geant4 Builder Stage                           ##
+##############################################################################
+# Compile Geant4 from source on the SAME base as the runtime stage so the libs
+# are ABI-compatible (Ubuntu 24.04 / GCC 13 / libstdc++). Only the /opt/geant4
+# install is copied into the final image; the compiler toolchain, source tree,
+# and build tree are discarded with this stage.
+FROM ros:${ROS_DISTRO}-ros-base AS geant4-builder
+
+ARG GEANT4_VERSION=v11.3.0
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential                                         \
+        cmake                                                   \
+        git                                                     \
+        ca-certificates                                         \
+        libexpat1-dev                                           \
+        zlib1g-dev                                              \
+        libxerces-c-dev                                         \
+        libgl1-mesa-dev                                         \
+        libglu1-mesa-dev                                        \
+        libxmu-dev                                              \
+        libxi-dev                                               \
+        qtbase5-dev                                             \
+        libqt5opengl5-dev                                       \
+    && rm -rf /var/lib/apt/lists/*
+
+# Bundled CLHEP (USE_SYSTEM_CLHEP=OFF); datasets baked in (INSTALL_DATA=ON, ~6 GB);
+# GDML on (xerces-c) for geometry exchange; OpenGL/X11 viewer on (Qt off for now);
+# multithreaded; Release.
+RUN git clone --branch ${GEANT4_VERSION} --depth 1 \
+        https://github.com/Geant4/geant4.git /tmp/geant4-src \
+    && cmake -S /tmp/geant4-src -B /tmp/geant4-build \
+        -DCMAKE_INSTALL_PREFIX=/opt/geant4 \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGEANT4_INSTALL_DATA=ON \
+        -DGEANT4_USE_GDML=ON \
+        -DGEANT4_BUILD_MULTITHREADED=ON \
+        -DGEANT4_USE_SYSTEM_CLHEP=OFF \
+        -DGEANT4_USE_QT=ON \
+        -DGEANT4_USE_OPENGL_X11=OFF \
+    && cmake --build /tmp/geant4-build --target install -j"$(nproc)" \
+    && rm -rf /tmp/geant4-src /tmp/geant4-build
+
+
 ##############################################################################
 ##                                 Base Image                               ##
 ##############################################################################
-ARG ROS_DISTRO=jazzy
 FROM ros:${ROS_DISTRO}-ros-base
 
 ENV PROJECT_WS=ros2_ws
@@ -46,6 +93,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends    \
         git                                                         \
         libpcl-dev                                                  \
     && apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+
+##############################################################################
+##                                   Geant4                                 ##
+##############################################################################
+# Pull in the Geant4 install from the builder stage (only the result crosses over
+# — no compiler/source/build tree). Placed high so it caches above the
+# frequently-changing ROS workspace build.
+COPY --from=geant4-builder /opt/geant4 /opt/geant4
+
+# Runtime libs Geant4 links against: expat/zlib, xerces-c (GDML), and the
+# OpenGL/X11 viewer stack (most GL/X11 libs are already present via rviz2).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libexpat1                                               \
+        zlib1g                                                  \
+        libxerces-c3.2                                          \
+        libgl1                                                  \
+        libglu1-mesa                                            \
+        libxmu6                                                 \
+        libxi6                                                  \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build + runtime environment for Geant4 apps. geant4.sh (sourced for interactive
+# shells) exports the dataset vars (G4*DATA) and adds lib/bin to the paths.
+ENV Geant4_DIR=/opt/geant4/lib/cmake/Geant4
+ENV CMAKE_PREFIX_PATH="/opt/geant4:${CMAKE_PREFIX_PATH}"
+ENV LD_LIBRARY_PATH="/opt/geant4/lib:${LD_LIBRARY_PATH}"
+RUN echo "source /opt/geant4/bin/geant4.sh" >> /etc/bash.bashrc
 
 ##############################################################################
 ##                                 Create User                              ##
