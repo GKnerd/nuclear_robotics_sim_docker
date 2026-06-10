@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# macOS (Apple Silicon) build. Builds natively (arm64) — no --platform pin.
+# macOS (Apple Silicon) build. Builds linux/amd64 under emulation (Open3D has
+# no linux/arm64 wheel, so a native build fails with "open3d not found").
 # Uses docker/Dockerfile.macos, which adds an in-container virtual desktop
 # (Xvfb + VNC + noVNC) so rviz2 and the MuJoCo viewer work without XQuartz.
 
@@ -48,9 +49,10 @@ done
 docker build --build-arg UID="$uid" --build-arg GID="$gid" \
     --build-arg ROS_DISTRO="$ROS_DISTRO" \
     --build-arg USER="$USER" \
+    --platform=linux/amd64 \
     --network=host \
     -t $PACKAGE_NAME/ros:$ROS_DISTRO-mac . \
     -f $PACKAGE_ROOT/docker/Dockerfile.macos \
-    && docker create --name temp-container-mac $PACKAGE_NAME/ros:$ROS_DISTRO-mac \
+    && docker create --platform=linux/amd64 --name temp-container-mac $PACKAGE_NAME/ros:$ROS_DISTRO-mac \
     && docker cp temp-container-mac:/home/$USER/ros2_ws/. $PACKAGE_ROOT/ros2_ws/. \
     && docker rm temp-container-mac

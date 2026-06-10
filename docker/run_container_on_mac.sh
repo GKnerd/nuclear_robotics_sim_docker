@@ -76,6 +76,7 @@ echo -e "${GREEN_BOLD}GUI will be available at: http://localhost:${NOVNC_PORT}/v
 
 docker run \
     --name $PACKAGE_NAME \
+    --platform=linux/amd64 \
     -it \
     -p ${NOVNC_PORT}:6080 \
     -p ${VNC_PORT}:5900 \
