@@ -15,6 +15,11 @@
 
 ARG ROS_DISTRO=jazzy
 
+# Pin the build to amd64 (Open3D has no linux/arm64 wheel). Declared as an ARG
+# rather than a literal in FROM, otherwise BuildKit lints
+# "FROM --platform flag should not be used as a constant value".
+ARG IMAGE_PLATFORM=linux/amd64
+
 ##############################################################################
 ##                          Geant4 Builder Stage                           ##
 ##############################################################################
@@ -22,7 +27,7 @@ ARG ROS_DISTRO=jazzy
 # are ABI-compatible (Ubuntu 24.04 / GCC 13 / libstdc++). Only the /opt/geant4
 # install is copied into the final image; the compiler toolchain, source tree,
 # and build tree are discarded with this stage.
-FROM --platform=linux/amd64 ros:${ROS_DISTRO}-ros-base AS geant4-builder
+FROM --platform=${IMAGE_PLATFORM} ros:${ROS_DISTRO}-ros-base AS geant4-builder
 
 ARG GEANT4_VERSION=v11.3.0
 ENV DEBIAN_FRONTEND=noninteractive
@@ -230,9 +235,14 @@ RUN sudo rm -rf /usr/lib/python3/dist-packages/sympy* \
 
 # --- pure-pip deps: no workspace source needed, kept above COPY for caching ---
 # URDF assets (moved out of stretch_description into a separate pip package)
+# Pinned to a known-good commit: later stretch4_urdf commits hoist a
+# `stretch4_body` import to module level, which drags in the Stretch hardware
+# driver (and its HELLO_FLEET_PATH requirement) on a plain `import stretch4_urdf`.
+# --depth 1 dropped so the checkout can resolve. See run history / team notes.
 RUN pip3 install -U hello-robot-stretch-urdf && \
-    git clone https://github.com/hello-robot/stretch4_urdf.git --depth 1 /home/$USER/stretch4_urdf && \
+    git clone https://github.com/hello-robot/stretch4_urdf.git /home/$USER/stretch4_urdf && \
     cd /home/$USER/stretch4_urdf && \
+    git checkout 9b533f70f4406ccedb581425973b075addc1e8b6 && \
     pip3 install -e .
 
 # Stretch4 MuJoCo simulation lib — cloned OUTSIDE the workspace; imported via pip (sys.path), not by path.
