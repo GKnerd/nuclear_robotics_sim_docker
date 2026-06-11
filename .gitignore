@@ -62,3 +62,5 @@ data/
 # Claude Specific
 .claude_container
 
+*.csv
+*.html

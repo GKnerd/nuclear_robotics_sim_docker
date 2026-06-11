@@ -1,0 +1,25 @@
+/run/numberOfThreads 1
+/run/initialize
+
+/tracking/storeTrajectory 1
+
+/vis/open OGL
+/vis/scene/create
+/vis/scene/add/volume
+
+/vis/scene/add/trajectories smooth
+/vis/modeling/trajectories/create/drawByParticleID
+/vis/modeling/trajectories/drawByParticleID-0/set gamma yellow
+/vis/modeling/trajectories/drawByParticleID-0/set e- blue
+/vis/modeling/trajectories/drawByParticleID-0/set e+ red
+
+/vis/viewer/set/viewpointVector 1 1 0.45
+/vis/viewer/set/style surface
+/vis/viewer/set/autoRefresh true
+
+/vis/scene/endOfEventAction accumulate
+/vis/scene/endOfRunAction accumulate
+
+/vis/viewer/flush
+
+/run/beamOn 30
