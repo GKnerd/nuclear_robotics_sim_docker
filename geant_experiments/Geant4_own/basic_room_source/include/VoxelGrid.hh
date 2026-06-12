@@ -42,12 +42,9 @@ private:
     // Resolution:
     //   x,y: 10 cm
     //   z:   7.5 cm
-    // const int fNx = 200;
-    // const int fNy = 200;
-    // const int fNz = 60;
-    const int fNx = 100;
-    const int fNy = 100;
-    const int fNz = 45;
+    const int fNx = 200;
+    const int fNy = 200;
+    const int fNz = 60;
 
     const double fXMin;
     const double fXMax;

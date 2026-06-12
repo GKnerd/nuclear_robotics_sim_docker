@@ -13,6 +13,37 @@
 
 #include <vector>
 
+namespace LeakConfig
+{
+    constexpr bool leakEnabled = true;
+
+    // 0-based index:
+    // 0 = canister_1
+    // 1 = canister_2
+    // 2 = canister_3
+    // 3 = canister_4
+    // 4 = canister_5
+    // 5 = canister_6
+    constexpr int leakyCanisterIndex = 4;
+
+    // Leak position in local cylindrical coordinates.
+    // theta = 0 deg   -> +x side
+    // theta = 90 deg  -> +y side
+    // theta = 180 deg -> -x side
+    // theta = 270 deg -> -y side
+    constexpr double leakThetaDeg = 330.0;
+
+    // Local z coordinate along canister axis.
+    // For vertical canisters, z=0 is the center height.
+    constexpr double leakLocalZ_m = 1.8;
+
+    // Leak cutter dimensions.
+    // Radius for controlling radial cutout dimension
+    // Depth for controlling how far the cutout extends into the canister wall
+    constexpr double leakRadius_m = 0.01;
+    constexpr double leakHalfDepth_m = 0.30;
+}
+
 G4VPhysicalVolume* DetectorConstruction::Construct()
 {
     auto* nist = G4NistManager::Instance();
@@ -21,7 +52,12 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     auto* concrete = nist->FindOrBuildMaterial("G4_CONCRETE");
     auto* steel    = nist->FindOrBuildMaterial("G4_STAINLESS-STEEL");
 
-    auto* worldSolid = new G4Box("World", 12.0 * m, 12.0 * m, 6.0 * m);
+    auto* worldSolid = new G4Box(
+        "World",
+        23.0 * m,
+        23.0 * m,
+        7.0 * m
+    );
 
     auto* worldLogic = new G4LogicalVolume(
         worldSolid,
@@ -40,13 +76,10 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         true
     );
 
-    // ------------------------------------------------------------------
-    // Floor
-    // ------------------------------------------------------------------
     auto* floorSolid = new G4Box(
         "Floor",
-        10.0 * m,
-        10.0 * m,
+        20.0 * m,
+        20.0 * m,
         5.0 * cm
     );
 
@@ -60,28 +93,28 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         nullptr,
         G4ThreeVector(0, 0, -5.0 * cm),
         floorLogic,
-        "Floor",
+        "floor",
         worldLogic,
         false,
         0,
         true
     );
 
-    // ------------------------------------------------------------------
-    // Walls
-    // ------------------------------------------------------------------
+    // Outer walls.
+    // North/south have full width.
+    // East/west are shortened to avoid corner overlaps.
     auto* wallNorthSouthSolid = new G4Box(
         "WallNorthSouth",
-        10.0 * m,
+        20.0 * m,
         0.1 * m,
-        1.5 * m
+        2.0 * m
     );
 
     auto* wallEastWestSolid = new G4Box(
         "WallEastWest",
         0.1 * m,
-        9.8 * m,
-        1.5 * m
+        19.8 * m,
+        2.0 * m
     );
 
     auto* wallNorthLogic = new G4LogicalVolume(
@@ -110,7 +143,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(0, 10.0 * m, 1.5 * m),
+        G4ThreeVector(0, 20.0 * m, 2.0 * m),
         wallNorthLogic,
         "wall_north",
         worldLogic,
@@ -121,7 +154,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(0, -10.0 * m, 1.5 * m),
+        G4ThreeVector(0, -20.0 * m, 2.0 * m),
         wallSouthLogic,
         "wall_south",
         worldLogic,
@@ -132,7 +165,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(10.0 * m, 0, 1.5 * m),
+        G4ThreeVector(20.0 * m, 0, 2.0 * m),
         wallEastLogic,
         "wall_east",
         worldLogic,
@@ -143,7 +176,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(-10.0 * m, 0, 1.5 * m),
+        G4ThreeVector(-20.0 * m, 0, 2.0 * m),
         wallWestLogic,
         "wall_west",
         worldLogic,
@@ -152,13 +185,76 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         true
     );
 
-    // ------------------------------------------------------------------
-    // Canister geometry
-    // ------------------------------------------------------------------
+    // Inner walls.
+    auto* innerWallLongSolid = new G4Box(
+        "InnerWallLong",
+        8.0 * m,
+        0.1 * m,
+        2.0 * m
+    );
+
+    auto* innerWallShortSolid = new G4Box(
+        "InnerWallShort",
+        6.0 * m,
+        0.1 * m,
+        2.0 * m
+    );
+
+    auto* innerWallLongLogic = new G4LogicalVolume(
+        innerWallLongSolid,
+        concrete,
+        "InnerWallLongLogic"
+    );
+
+    auto* innerWallShortLogic = new G4LogicalVolume(
+        innerWallShortSolid,
+        concrete,
+        "InnerWallShortLogic"
+    );
+
+    new G4PVPlacement(
+        nullptr,
+        G4ThreeVector(-4.0 * m, -3.5 * m, 2.0 * m),
+        innerWallLongLogic,
+        "wall_inner_1",
+        worldLogic,
+        false,
+        0,
+        true
+    );
+
+    new G4PVPlacement(
+        nullptr,
+        G4ThreeVector(4.0 * m, 4.0 * m, 2.0 * m),
+        innerWallLongLogic,
+        "wall_inner_2",
+        worldLogic,
+        false,
+        1,
+        true
+    );
+
+    auto* innerWall3Rot = new G4RotationMatrix();
+    innerWall3Rot->rotateZ(90.0 * deg);
+
+    new G4PVPlacement(
+        innerWall3Rot,
+        G4ThreeVector(12.0 * m, -9.0 * m, 2.0 * m),
+        innerWallShortLogic,
+        "wall_inner_3",
+        worldLogic,
+        false,
+        2,
+        true
+    );
+
+    // Canister parameters.
     const G4double canisterOuterRadius = 0.89 * m;
     const G4double canisterInnerRadius = 0.65 * m;
     const G4double canisterHalfHeight  = 2.09 * m;
-    const G4double innerHalfHeight     = 1.80 * m;
+
+    const G4double sourceRadius     = 0.55 * m;
+    const G4double sourceHalfHeight = 1.80 * m;
 
     auto* canisterOuterSolid = new G4Tubs(
         "CanisterOuterBase",
@@ -173,12 +269,11 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         "CanisterInnerVoid",
         0.0,
         canisterInnerRadius,
-        innerHalfHeight,
+        1.85 * m,
         0.0,
         360.0 * deg
     );
 
-    // Normal steel shell: outer cylinder minus inner void.
     auto* normalCanisterShellSolid = new G4SubtractionSolid(
         "NormalCanisterShell",
         canisterOuterSolid,
@@ -187,27 +282,36 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         G4ThreeVector(0, 0, 0)
     );
 
-    // Leak/scar opening:
-    // G4Tubs is normally along z. Rotate it so its axis points along x.
-    // This cuts a short round hole through the +x side wall.
     auto* leakCutterSolid = new G4Tubs(
         "LeakCutter",
         0.0,
-        0.18 * m,
-        0.80 * m,
+        LeakConfig::leakRadius_m * m,
+        LeakConfig::leakHalfDepth_m * m,
         0.0,
         360.0 * deg
     );
 
+    const G4double leakTheta = LeakConfig::leakThetaDeg * deg;
+
+    const G4ThreeVector leakLocalPosition(
+        canisterOuterRadius * std::cos(leakTheta),
+        canisterOuterRadius * std::sin(leakTheta),
+        LeakConfig::leakLocalZ_m * m
+    );
+
+    // Cutter axis should point radially outward.
+    // G4Tubs cutter axis is initially local z.
+    // First rotate from z-axis to x-axis, then rotate around z by theta.
     auto* leakRotation = new G4RotationMatrix();
     leakRotation->rotateY(90.0 * deg);
+    leakRotation->rotateZ(LeakConfig::leakThetaDeg * deg);
 
     auto* leakyCanisterShellSolid = new G4SubtractionSolid(
         "LeakyCanisterShell",
         normalCanisterShellSolid,
         leakCutterSolid,
         leakRotation,
-        G4ThreeVector(canisterOuterRadius, 0.0, 0.20 * m)
+        leakLocalPosition
     );
 
     auto* normalCanisterShellLogic = new G4LogicalVolume(
@@ -222,13 +326,11 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         "LeakyCanisterShellLogic"
     );
 
-    // Visible red source volume, placed independently in the world.
-    // This avoids daughter-overlap issues with the leaked shell.
     auto* sourceRegionSolid = new G4Tubs(
         "CanisterSourceRegion",
         0.0,
-        0.75 * m,
-        1.85 * m,
+        sourceRadius,
+        sourceHalfHeight,
         0.0,
         360.0 * deg
     );
@@ -239,50 +341,74 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
         "CanisterSourceRegionLogic"
     );
 
-    std::vector<G4ThreeVector> canisterPositions = {
-        {-4.0 * m, -3.0 * m, 2.09 * m},
-        { 0.0 * m, -3.0 * m, 2.09 * m},
-        { 4.0 * m, -3.0 * m, 2.09 * m}, // leaky canister
-        {-4.0 * m,  3.0 * m, 2.09 * m},
-        { 0.0 * m,  3.0 * m, 2.09 * m},
-        { 4.0 * m,  3.0 * m, 2.09 * m}
+    struct CanisterPlacement
+    {
+        G4ThreeVector position;
+        bool horizontalX;
+        int index;
+        const char* name;
     };
 
-    const std::size_t leakyCanisterIndex = 2;
+    std::vector<CanisterPlacement> canisters = {
+        {G4ThreeVector(-17.0 * m, -5.0 * m, 0.89 * m), true,  0, "canister_1"},
+        {G4ThreeVector(  0.0 * m, -7.0 * m, 2.09 * m), false, 1, "canister_2"},
+        {G4ThreeVector( 17.0 * m,-12.0 * m, 2.09 * m), false, 2, "canister_3"},
+        {G4ThreeVector(-15.0 * m, 12.0 * m, 2.09 * m), false, 3, "canister_4"},
+        {G4ThreeVector(  0.0 * m, 12.0 * m, 2.09 * m), false, 4, "canister_5"},
+        {G4ThreeVector( 17.0 * m, 16.0 * m, 2.09 * m), false, 5, "canister_6"}
+    };
 
-    for (std::size_t i = 0; i < canisterPositions.size(); ++i)
+    for (const auto& canister : canisters)
     {
+        const bool isLeaky =
+            LeakConfig::leakEnabled &&
+            canister.index == LeakConfig::leakyCanisterIndex;
+
         auto* shellLogic =
-            (i == leakyCanisterIndex)
+            isLeaky
                 ? leakyCanisterShellLogic
                 : normalCanisterShellLogic;
 
+        G4RotationMatrix* shellRotation = nullptr;
+
+        if (canister.horizontalX)
+        {
+            shellRotation = new G4RotationMatrix();
+            shellRotation->rotateY(90.0 * deg);
+        }
+
         new G4PVPlacement(
-            nullptr,
-            canisterPositions[i],
+            shellRotation,
+            canister.position,
             shellLogic,
-            (i == leakyCanisterIndex) ? "canister_leaky_shell" : "canister_shell",
+            isLeaky ? "canister_leaky_shell" : canister.name,
             worldLogic,
             false,
-            static_cast<G4int>(i),
+            canister.index,
             true
         );
 
+        G4RotationMatrix* sourceRotation = nullptr;
+
+        if (canister.horizontalX)
+        {
+            sourceRotation = new G4RotationMatrix();
+            sourceRotation->rotateY(90.0 * deg);
+        }
+
         new G4PVPlacement(
-            nullptr,
-            canisterPositions[i],
+            sourceRotation,
+            canister.position,
             sourceRegionLogic,
             "canister_source_region",
             worldLogic,
             false,
-            static_cast<G4int>(i),
+            canister.index,
             true
         );
     }
 
-    // ------------------------------------------------------------------
-    // Visualization
-    // ------------------------------------------------------------------
+    // Visualization.
     worldLogic->SetVisAttributes(G4VisAttributes::GetInvisible());
 
     auto* concreteVis = new G4VisAttributes(G4Colour(0.55, 0.55, 0.55, 0.35));
@@ -293,16 +419,18 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     wallSouthLogic->SetVisAttributes(concreteVis);
     wallEastLogic->SetVisAttributes(concreteVis);
     wallWestLogic->SetVisAttributes(concreteVis);
+    innerWallLongLogic->SetVisAttributes(concreteVis);
+    innerWallShortLogic->SetVisAttributes(concreteVis);
 
-    auto* steelVis = new G4VisAttributes(G4Colour(0.60, 0.62, 0.68, 0.70));
+    auto* steelVis = new G4VisAttributes(G4Colour(0.60, 0.62, 0.68, 0.75));
     steelVis->SetForceSolid(true);
     normalCanisterShellLogic->SetVisAttributes(steelVis);
 
-    auto* leakySteelVis = new G4VisAttributes(G4Colour(0.85, 0.55, 0.25, 0.80));
+    auto* leakySteelVis = new G4VisAttributes(G4Colour(0.90, 0.55, 0.25, 0.85));
     leakySteelVis->SetForceSolid(true);
     leakyCanisterShellLogic->SetVisAttributes(leakySteelVis);
 
-    auto* sourceRegionVis = new G4VisAttributes(G4Colour(1.0, 0.05, 0.05, 0.12));
+    auto* sourceRegionVis = new G4VisAttributes(G4Colour(1.0, 0.05, 0.05, 0.10));
     sourceRegionVis->SetForceSolid(true);
     sourceRegionLogic->SetVisAttributes(sourceRegionVis);
 
