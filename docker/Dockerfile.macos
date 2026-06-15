@@ -299,6 +299,20 @@ RUN sed -i 's|^\( *\)current_time = self.get_clock().now().to_msg()|\1current_ti
     grep -q "^[[:space:]]*current_time = sim_time" \
         src/stretch4_ros2/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py
 
+# Same pinned stretch4_ros2 repo: run the sim driver's TF publishers on sim time. Without it
+# joint_state_publisher and robot_state_publisher stamp their joint_states/TF with wall-clock node
+# time while the driver stamps MuJoCo sim time, so the TF tree mixes two clocks (~1.7e9 s apart)
+# and every lookup (SLAM, Nav2) fails. rviz already carries use_sim_time upstream; add it to the
+# other two nodes. Count-guarded for idempotency: upstream ships 1 occurrence, this brings it to 3;
+# a future ros2.repos bump that drops the rate/publish_frequency anchors makes the seds no-op and
+# the final test fail loudly instead of shipping a mixed-clock sim.
+RUN F=src/stretch4_ros2/stretch_simulation/launch/stretch_mujoco_driver.launch.py && \
+    if [ "$(grep -c '"use_sim_time": True' "$F")" -lt 3 ]; then \
+        sed -i 's|^\( *\){"rate": rate},|\1{"rate": rate},\n\1{"use_sim_time": True},|' "$F" && \
+        sed -i 's|^\( *\){"publish_frequency": rate},|\1{"publish_frequency": rate},\n\1{"use_sim_time": True},|' "$F" ; \
+    fi && \
+    test "$(grep -c '"use_sim_time": True' "$F")" -ge 3
+
 WORKDIR /home/$USER/$PROJECT_WS
 RUN sudo apt-get update && \
     sudo rosdep update --rosdistro $ROS_DISTRO && \
