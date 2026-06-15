@@ -14,10 +14,10 @@ VoxelGrid& VoxelGrid::Instance()
 }
 
 VoxelGrid::VoxelGrid()
-    : fXMin(-10.0 * m),
-      fXMax( 10.0 * m),
-      fYMin(-10.0 * m),
-      fYMax( 10.0 * m),
+    : fXMin(-20.0 * m),
+      fXMax( 20.0 * m),
+      fYMin(-20.0 * m),
+      fYMax( 20.0 * m),
       fZMin(  0.0 * m),
       fZMax(  4.5 * m),
       fData(fNx * fNy * fNz, 0.0)
