@@ -1,5 +1,5 @@
 #!/bin/bash
-#    Copyright 2025 Proximity Robotics & Automation GmbH
+#    Copyright 2026 Proximity Robotics & Automation GmbH
 
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ if [ "$DISPLAY" ]; then
 fi
 
 # Check and create necessary folders
-for FOLDER in ros2_ws/src env log data; do
+for FOLDER in ros2_ws/src env log data geant_experiments; do
     HOST_PATH="$PACKAGE_ROOT/$FOLDER"
     if [ ! -d "$HOST_PATH" ]; then
         echo -e "${YELLOW_BOLD}Warning: $HOST_PATH does not exist. Creating it...${RESET}"

@@ -200,6 +200,10 @@ RUN sudo rm -rf /usr/lib/python3/dist-packages/sympy* \
 
 # --- pure-pip deps: no workspace source needed, kept above COPY for caching ---
 # URDF assets (moved out of stretch_description into a separate pip package)
+# Pinned to a known-good commit: later stretch4_urdf commits hoist a
+# `stretch4_body` import to module level, which drags in the Stretch hardware
+# driver (and its HELLO_FLEET_PATH requirement) on a plain `import stretch4_urdf`.
+# --depth 1 dropped so the checkout can resolve. See run history / team notes.
 RUN pip3 install -U hello-robot-stretch-urdf && \
     git clone https://github.com/hello-robot/stretch4_urdf.git /home/$USER/stretch4_urdf && \
     cd /home/$USER/stretch4_urdf && \
@@ -244,6 +248,18 @@ RUN pip3 install PyOpenGL==3.1.4 pyquaternion transforms3d && \
 ##############################################################################
 WORKDIR /home/$USER/$PROJECT_WS
 COPY --chown=$USER:$USER $PROJECT_WS/src /home/$USER/$PROJECT_WS/src
+
+# stretch4_ros2 is pinned in ros2.repos (b7869273) and brought in by `vcs import`, so a fresh
+# import overwrites any host edit. Stamp the driver's published topics (TF, odom, joint_states,
+# camera/lidar) with the MuJoCo sim time instead of wall-clock node time: with use_sim_time:=true
+# the timestamps then line up with /clock so SLAM/Nav2 can transform them. Idempotent (only the
+# active, uncommented assignment is rewritten) and grep-guarded like the stretch4_mujoco patches,
+# so the build fails loudly if a future ros2.repos bump moves the line instead of shipping a
+# silently-broken sim.
+RUN sed -i 's|^\( *\)current_time = self.get_clock().now().to_msg()|\1current_time = sim_time|' \
+        src/stretch4_ros2/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py && \
+    grep -q "^[[:space:]]*current_time = sim_time" \
+        src/stretch4_ros2/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py
 
 WORKDIR /home/$USER/$PROJECT_WS
 RUN sudo apt-get update && \

@@ -55,7 +55,7 @@ else
 fi
 
 # Check and create necessary folders
-for FOLDER in ros2_ws/src env log data; do
+for FOLDER in ros2_ws/src env log data geant_experiments; do
     HOST_PATH="$PACKAGE_ROOT/$FOLDER"
     if [ ! -d "$HOST_PATH" ]; then
         echo -e "${YELLOW_BOLD}Warning: $HOST_PATH does not exist. Creating it...${RESET}"
@@ -84,5 +84,6 @@ docker run \
     -v $PACKAGE_ROOT/env:/home/${USER}/env \
     -v $PACKAGE_ROOT/data:/home/${USER}/data \
     -v $PACKAGE_ROOT/.claude_container:/home/${USER}/.claude \
+    -v $PACKAGE_ROOT/geant_experiments:/home/${USER}/geant_experiments \
     --rm \
     $PACKAGE_NAME/ros:$ROS_DISTRO-mac

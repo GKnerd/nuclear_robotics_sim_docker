@@ -213,6 +213,9 @@ RUN apt-get update && apt-get install -y        \
     ros-$ROS_DISTRO-pcl-conversions             \
     ros-$ROS_DISTRO-joint-state-publisher       \
     ros-$ROS_DISTRO-tf-transformations          \
+    ros-$ROS_DISTRO-teleop-twist-keyboard       \
+    ros-$ROS_DISTRO-slam-toolbox                \
+    ros-$ROS_DISTRO-nav2-map-server             \
     python3-rosdep                              \
     python3-colcon-common-extensions            \
     && rm -rf /var/lib/apt/lists/*
@@ -283,6 +286,18 @@ RUN pip3 install PyOpenGL==3.1.4 pyquaternion transforms3d && \
 ##############################################################################
 WORKDIR /home/$USER/$PROJECT_WS
 COPY --chown=$USER:$USER $PROJECT_WS/src /home/$USER/$PROJECT_WS/src
+
+# stretch4_ros2 is pinned in ros2.repos (b7869273) and brought in by `vcs import`, so a fresh
+# import overwrites any host edit. Stamp the driver's published topics (TF, odom, joint_states,
+# camera/lidar) with the MuJoCo sim time instead of wall-clock node time: with use_sim_time:=true
+# the timestamps then line up with /clock so SLAM/Nav2 can transform them. Idempotent (only the
+# active, uncommented assignment is rewritten) and grep-guarded like the stretch4_mujoco patches,
+# so the build fails loudly if a future ros2.repos bump moves the line instead of shipping a
+# silently-broken sim.
+RUN sed -i 's|^\( *\)current_time = self.get_clock().now().to_msg()|\1current_time = sim_time|' \
+        src/stretch4_ros2/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py && \
+    grep -q "^[[:space:]]*current_time = sim_time" \
+        src/stretch4_ros2/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py
 
 WORKDIR /home/$USER/$PROJECT_WS
 RUN sudo apt-get update && \
