@@ -178,6 +178,8 @@ RUN apt-get update && apt-get install -y        \
     ros-$ROS_DISTRO-teleop-twist-keyboard       \
     ros-$ROS_DISTRO-slam-toolbox                \
     ros-$ROS_DISTRO-nav2-map-server             \
+    ros-$ROS_DISTRO-navigation2                 \
+    ros-$ROS_DISTRO-nav2-bringup                \
     python3-rosdep                              \
     python3-colcon-common-extensions            \
     && rm -rf /var/lib/apt/lists/*
@@ -249,31 +251,30 @@ RUN pip3 install PyOpenGL==3.1.4 pyquaternion transforms3d && \
 WORKDIR /home/$USER/$PROJECT_WS
 COPY --chown=$USER:$USER $PROJECT_WS/src /home/$USER/$PROJECT_WS/src
 
-# stretch4_ros2 is pinned in ros2.repos (b7869273) and brought in by `vcs import`, so a fresh
-# import overwrites any host edit. Stamp the driver's published topics (TF, odom, joint_states,
-# camera/lidar) with the MuJoCo sim time instead of wall-clock node time: with use_sim_time:=true
-# the timestamps then line up with /clock so SLAM/Nav2 can transform them. Idempotent (only the
-# active, uncommented assignment is rewritten) and grep-guarded like the stretch4_mujoco patches,
-# so the build fails loudly if a future ros2.repos bump moves the line instead of shipping a
-# silently-broken sim.
-RUN sed -i 's|^\( *\)current_time = self.get_clock().now().to_msg()|\1current_time = sim_time|' \
-        src/stretch4_ros2/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py && \
-    grep -q "^[[:space:]]*current_time = sim_time" \
-        src/stretch4_ros2/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py
-
-# Same pinned stretch4_ros2 repo: run the sim driver's TF publishers on sim time. Without it
-# joint_state_publisher and robot_state_publisher stamp their joint_states/TF with wall-clock node
-# time while the driver stamps MuJoCo sim time, so the TF tree mixes two clocks (~1.7e9 s apart)
-# and every lookup (SLAM, Nav2) fails. rviz already carries use_sim_time upstream; add it to the
-# other two nodes. Count-guarded for idempotency: upstream ships 1 occurrence, this brings it to 3;
-# a future ros2.repos bump that drops the rate/publish_frequency anchors makes the seds no-op and
-# the final test fail loudly instead of shipping a mixed-clock sim.
-RUN F=src/stretch4_ros2/stretch_simulation/launch/stretch_mujoco_driver.launch.py && \
-    if [ "$(grep -c '"use_sim_time": True' "$F")" -lt 3 ]; then \
-        sed -i 's|^\( *\){"rate": rate},|\1{"rate": rate},\n\1{"use_sim_time": True},|' "$F" && \
-        sed -i 's|^\( *\){"publish_frequency": rate},|\1{"publish_frequency": rate},\n\1{"use_sim_time": True},|' "$F" ; \
+# stretch4_ros2 is pinned in ros2.repos (b7869273) and pulled in by `vcs import`, so a fresh import
+# (a teammate's clone, or the macOS build) ships stock upstream without our sim fixes. Re-apply them
+# from one reviewable patch (docker/patches/stretch4_ros2-sim.patch) instead of scattered seds. The
+# patch carries, against the pinned SHA:
+#   * driver: stamp published topics (TF/odom/joint_states/camera/lidar) with MuJoCo sim time so they
+#     line up with /clock under use_sim_time (current_time = sim_time);
+#   * driver: copy the absolutized custom scene to a UNIQUE temp file before the robot-model load
+#     overwrites the SHARED stretch_temp_abs.xml -- otherwise a custom scene_xml dies at startup with
+#     "geom 'floor' not found in collision 0";
+#   * driver: map the gripper camera to the frame that actually exists in the URDF
+#     (gripper_stereo_camera_color_optical_frame);
+#   * launch: run joint_state_publisher + robot_state_publisher on sim time too, so the whole TF tree
+#     shares one clock (SLAM/Nav2 lookups otherwise mix wall-clock and sim time ~1.7e9 s apart).
+# Idempotent: if the COPYed host src already carries the edits the patch reverse-applies cleanly and
+# we skip; a genuine upstream drift on a pin bump makes `git apply` fail loudly.
+COPY docker/patches/stretch4_ros2-sim.patch /tmp/stretch4_ros2-sim.patch
+RUN cd src/stretch4_ros2 && \
+    if git apply --reverse --check /tmp/stretch4_ros2-sim.patch 2>/dev/null; then \
+        echo "stretch4_ros2 sim patch already present in COPYed src -- skipping"; \
+    else \
+        git apply /tmp/stretch4_ros2-sim.patch; \
     fi && \
-    test "$(grep -c '"use_sim_time": True' "$F")" -ge 3
+    grep -q "shutil.copy(scene_xml_path, stable)" stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py && \
+    grep -q "^[[:space:]]*current_time = sim_time" stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py
 
 WORKDIR /home/$USER/$PROJECT_WS
 RUN sudo apt-get update && \

@@ -1,0 +1,73 @@
+diff --git a/stretch_simulation/launch/stretch_mujoco_driver.launch.py b/stretch_simulation/launch/stretch_mujoco_driver.launch.py
+index b042c82..aaec4a5 100644
+--- a/stretch_simulation/launch/stretch_mujoco_driver.launch.py
++++ b/stretch_simulation/launch/stretch_mujoco_driver.launch.py
+@@ -34,7 +34,7 @@ stretch_driver_params = {
+     "action_server_rate": LaunchConfiguration("action_server_rate"),
+     "joint_state_rate": LaunchConfiguration("joint_state_rate"),
+     "timeout": LaunchConfiguration("timeout"),
+-    "default_goal_timeout_s": LaunchConfiguration("default_goal_timeout_s"),
++    "default_goal_timeout_s": LaunchConfiguration("default_goal_timeout_s")
+ }
+ 
+ 
+@@ -79,6 +79,7 @@ def launch(context):
+             {"source_list": ["/stretch/joint_states"]},
+             {"rate": rate},
+             {"robot_description": robot_description_content},
++            {"use_sim_time": True}
+         ],
+         arguments=["--ros-args", "--log-level", "error"],
+     )
+@@ -90,6 +91,7 @@ def launch(context):
+         parameters=[
+             {"robot_description": robot_description_content},
+             {"publish_frequency": rate},
++            {"use_sim_time": True}
+         ],
+         arguments=["--ros-args", "--log-level", "error"],
+     )
+diff --git a/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py b/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py
+index 5025dec..69c3421 100644
+--- a/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py
++++ b/stretch_simulation/stretch_mujoco_driver/stretch_mujoco_driver.py
+@@ -108,7 +108,16 @@ class StretchMujocoDriver(Node):
+         else:
+             model = None
+             if self.scene_xml:
++                # scene_xml_path = get_absolute_path_stretch_xml(self.scene_xml)
+                 scene_xml_path = get_absolute_path_stretch_xml(self.scene_xml)
++                # get_absolute_path_stretch_xml() writes a SHARED 'stretch_temp_abs.xml'
++                # that Stretch4MujocoSimulator.get_robot_xml_path() overwrites during init,
++                # clobbering our scene. Copy to a unique path so it survives. The robot
++                # <include> in the copied file is already an absolute path, so it still resolves.
++                import shutil, tempfile
++                stable = tempfile.NamedTemporaryFile(suffix="_scene.xml", delete=False).name
++                shutil.copy(scene_xml_path, stable)
++                scene_xml_path = stable
+             else:
+                 scene_xml_path = None
+ 
+@@ -408,8 +417,8 @@ class StretchMujocoDriver(Node):
+         self.clock_pub.publish(Clock(clock=sim_time))
+ 
+         # Use node time for other topics, using sim time makes bad things happen.
+-        current_time = self.get_clock().now().to_msg()
+-
++        # current_time = self.get_clock().now().to_msg()
++        current_time = sim_time
+         # obtain odometry
+         # assign relevant base status to variables
+         base_status = robot_status.base
+@@ -1523,9 +1532,9 @@ def get_camera_frame(camera: StretchCameras):
+     Matches the simulation camera with the optical frame on the robot urdf.
+     """
+     if camera == StretchCameras.cam_gripper_rgb:
+-        return "gripper_camera_color_optical_frame"
++        return "gripper_stereo_camera_color_optical_frame"
+     if camera == StretchCameras.cam_gripper_depth:
+-        return "gripper_camera_color_optical_frame" # We don't have a depth optical frame in the URDF.
++        return "gripper_stereo_camera_color_optical_frame" # We don't have a depth optical frame in the URDF.
+         return "gripper_camera_depth_optical_frame"
+     if camera == StretchCameras.cam_nav_rgb_se4_left:
+         return "camera_left_optical_link"
