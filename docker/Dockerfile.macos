@@ -246,11 +246,30 @@ RUN pip3 install -U hello-robot-stretch-urdf && \
     pip3 install -e .
 
 # Stretch4 MuJoCo simulation lib — cloned OUTSIDE the workspace; imported via pip (sys.path), not by path.
-# NOTE: HEAD renamed the module stretch_mujoco -> stretch4_mujoco, but the stretch4_ros2 code imports
-#       `stretch_mujoco`. Pin to a pre-rename commit (e.g. `git checkout 3bf0011`) once verified.
+# Pinned to a3e50cb ("Update camera names in stretch_cameras") = upstream main + the single fix commit
+# from branch bugfix/camera-name-fixes. It renames the SE4 head-camera mjcf names link_camera_* ->
+# camera_*_link so they match the camera links emitted by stretch4_urdf (@9b533f70). Without it,
+# StretchCameras.all_stretch4() asks MuJoCo for 'link_camera_left' and the camera manager raises
+# KeyError, aborting the sim. Bump deliberately once this lands on main.
+#
+# Two local sed patches applied after checkout (each grep-verified, so the build fails loudly if a
+# future pin bump makes a patch stop matching instead of silently shipping a broken sim):
+#   (1) odom: report the ground-truth base pose get_base_pose() for x/y instead of the wheel-odometry
+#       dead reckoning (status['x'/'y']). The dead reckoning diverges badly in the slow sim — odom ran
+#       to ~90 m while the robot stayed in the room — which smears SLAM maps. theta already used
+#       get_base_pose() upstream; this just makes x/y consistent.
+#   (2) lidar: raise the 2D base_lidar 'laser' body 0.2 m -> 0.4 m so its rays clear base_link_visual.
+#       At the stock 0.2 m the lidar sits buried in the base mesh, every ray hits the robot at ~0.19 m,
+#       and /scan_filtered never sees the walls (empty map). 0.4 m -> 332/360 rays land on the room.
 RUN git clone https://github.com/hello-robot/stretch4_mujoco.git /home/$USER/stretch4_mujoco && \
     cd /home/$USER/stretch4_mujoco && \
+    git checkout a3e50cb30dc0892ce1b2acd3015146e7da5aee67 && \
     git submodule update --init && \
+    sed -i "s|new_status.base.x = self.base_controller.status\['x'\]|new_status.base.x = self.base_controller.get_base_pose()[0]|" stretch4_mujoco/mujoco_server.py && \
+    sed -i "s|new_status.base.y = self.base_controller.status\['y'\]|new_status.base.y = self.base_controller.get_base_pose()[1]|" stretch4_mujoco/mujoco_server.py && \
+    grep -q "new_status.base.x = self.base_controller.get_base_pose()\[0\]" stretch4_mujoco/mujoco_server.py && \
+    sed -i 's|name="laser", pos="0.0 0.0 0.2"|name="laser", pos="0.0 0.0 0.4"|' stretch4_mujoco/models/stretch_4/mjcf_generator.py && \
+    grep -q 'name="laser", pos="0.0 0.0 0.4"' stretch4_mujoco/models/stretch_4/mjcf_generator.py && \
     pip3 install -e .
 
 # Extra Python deps rosdep misses (distutils versions already stripped above so these install fresh)

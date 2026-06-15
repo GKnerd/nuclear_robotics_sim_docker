@@ -74,6 +74,9 @@ docker run \
     --privileged \
     --net host \
     --ipc host \
+    --gpus all \
+    -e NVIDIA_DRIVER_CAPABILITIES=all \
+    -e MUJOCO_GL=egl \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     -v ~/.Xauthority:/home/${USER}/.Xauthority \

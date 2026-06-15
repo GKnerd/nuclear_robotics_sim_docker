@@ -139,6 +139,13 @@ cd /tmp/B1-build
 A run summary with a **cumulated dose**, plus a viewer window showing the geometry and
 particle tracks, confirms Geant4 is fully functional end-to-end.
 
+
+## Things to add
+
+1) Teleop run via terminal and disableda "autonomous" mode.
+2) Instructions on building on mac and the differences, e.g. docker run --rm --privileged --pid=host alpine sh -c “apk add --no-cache util-linux && nsenter -t 1 -m -u -n -i sh -c ‘sysctl -w net.core.rmem_max=2147483647’”
+3) detailed bringup
+
 ---
 
 Copyright 2026 Georgios Katranis. Licensed under the Apache License, Version 2.0.
