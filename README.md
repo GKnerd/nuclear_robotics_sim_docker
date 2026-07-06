@@ -200,12 +200,23 @@ The base lidar publishes `LaserScan` on `/scan_filtered`; that plus odometry is 
 
 ### Navigate autonomously (Nav2)
 
-Once you have a saved map `.yaml`:
+`autonomous:=true` launches the sim **and** the MPPI Nav2 stack together (don't start the sim
+separately, and don't run `stretch_nav2`'s `navigation_mppi.launch.py` directly — that starts the
+*real* robot driver + Hesai lidar). Once you have a saved map `.yaml`:
 ```bash
 ros2 launch hello_stretch_sim_bringup hello_stretch_sim_bringup.launch.py \
-  autonomous:=true map:=/home/nuclear_robot_sim/data/radiation_room/radiation_room.yaml
+  autonomous:=true \
+  map:=/home/nuclear_robot_sim/data/radiation_room_map_15_06_2026/radiation_room.yaml
 ```
-Nav2 brings its own RViz; set a 2D Pose Estimate, then send a Nav2 Goal.
+`use_sim_time` is forced on by the autonomous branch, so you don't pass it. In the Nav2 RViz
+window: **2D Pose Estimate** at the robot's start (the origin, where you mapped from — so it's
+near-identity), wait for the costmaps to populate, then **Nav2 Goal**. The MPPI controller drives
+the base via `/stretch/cmd_vel`.
+
+> The Nav2 stack (`navigation2`, `nav2-bringup`) is baked into the image, and the bringup layers
+> `config/nav2_sim_overrides.yaml` last to retarget Nav2's odometry from the real robot's
+> `wheel_odom` frame/topic onto the sim's `odom` — without it `local_costmap`/`amcl` abort with
+> `Invalid frame ID "wheel_odom"`.
 
 ## Verifying the Setup
 
