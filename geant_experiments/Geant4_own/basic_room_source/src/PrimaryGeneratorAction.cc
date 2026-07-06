@@ -32,12 +32,12 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
     };
 
     static const std::array<SourceCanister, 6> canisters = {{
-        {G4ThreeVector(-17.0 * m, -5.0 * m, 0.89 * m), true },
+        {G4ThreeVector(-12.0 * m,-10.0 * m, 0.89 * m), true },
         {G4ThreeVector(  0.0 * m, -7.0 * m, 2.09 * m), false},
-        {G4ThreeVector( 17.0 * m,-12.0 * m, 2.09 * m), false},
-        {G4ThreeVector(-15.0 * m, 12.0 * m, 2.09 * m), false},
-        {G4ThreeVector(  0.0 * m, 12.0 * m, 2.09 * m), false},
-        {G4ThreeVector( 17.0 * m, 16.0 * m, 2.09 * m), false}
+        {G4ThreeVector( 14.0 * m,-12.0 * m, 2.09 * m), false},
+        {G4ThreeVector(-14.0 * m, 12.0 * m, 2.09 * m), false},
+        {G4ThreeVector(  0.0 * m, 11.0 * m, 2.09 * m), false},
+        {G4ThreeVector( 12.0 * m, 15.0 * m, 2.09 * m), false}
     }};
 
     const int canisterIndex =

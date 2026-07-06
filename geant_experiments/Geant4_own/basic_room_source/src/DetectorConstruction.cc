@@ -35,13 +35,13 @@ namespace LeakConfig
 
     // Local z coordinate along canister axis.
     // For vertical canisters, z=0 is the center height.
-    constexpr double leakLocalZ_m = 1.8;
+    constexpr double leakLocalZ_m = 0;
 
     // Leak cutter dimensions.
     // Radius for controlling radial cutout dimension
     // Depth for controlling how far the cutout extends into the canister wall
-    constexpr double leakRadius_m = 0.01;
-    constexpr double leakHalfDepth_m = 0.30;
+    constexpr double leakRadius_m = 0.05;
+    constexpr double leakHalfDepth_m = 0.60;
 }
 
 G4VPhysicalVolume* DetectorConstruction::Construct()
@@ -54,8 +54,8 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     auto* worldSolid = new G4Box(
         "World",
-        23.0 * m,
-        23.0 * m,
+        19.0 * m,
+        19.0 * m,
         7.0 * m
     );
 
@@ -78,8 +78,8 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     auto* floorSolid = new G4Box(
         "Floor",
-        20.0 * m,
-        20.0 * m,
+        16.0 * m,
+        16.0 * m,
         5.0 * cm
     );
 
@@ -105,7 +105,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     // East/west are shortened to avoid corner overlaps.
     auto* wallNorthSouthSolid = new G4Box(
         "WallNorthSouth",
-        20.0 * m,
+        16.0 * m,
         0.1 * m,
         2.0 * m
     );
@@ -113,7 +113,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     auto* wallEastWestSolid = new G4Box(
         "WallEastWest",
         0.1 * m,
-        19.8 * m,
+        15.8 * m,
         2.0 * m
     );
 
@@ -143,7 +143,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(0, 20.0 * m, 2.0 * m),
+        G4ThreeVector(0, 16.0 * m, 2.0 * m),
         wallNorthLogic,
         "wall_north",
         worldLogic,
@@ -154,7 +154,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(0, -20.0 * m, 2.0 * m),
+        G4ThreeVector(0, -16.0 * m, 2.0 * m),
         wallSouthLogic,
         "wall_south",
         worldLogic,
@@ -165,7 +165,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(20.0 * m, 0, 2.0 * m),
+        G4ThreeVector(16.0 * m, 0, 2.0 * m),
         wallEastLogic,
         "wall_east",
         worldLogic,
@@ -176,7 +176,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(-20.0 * m, 0, 2.0 * m),
+        G4ThreeVector(-16.0 * m, 0, 2.0 * m),
         wallWestLogic,
         "wall_west",
         worldLogic,
@@ -186,36 +186,49 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     );
 
     // Inner walls.
-    auto* innerWallLongSolid = new G4Box(
-        "InnerWallLong",
-        8.0 * m,
+    auto* innerWall1Solid = new G4Box(
+        "InnerWall1",
+        10.0 * m,
         0.1 * m,
         2.0 * m
     );
 
-    auto* innerWallShortSolid = new G4Box(
-        "InnerWallShort",
-        6.0 * m,
+    auto* innerWall2Solid = new G4Box(
+        "InnerWall2",
+        6.5 * m,
         0.1 * m,
         2.0 * m
     );
 
-    auto* innerWallLongLogic = new G4LogicalVolume(
-        innerWallLongSolid,
-        concrete,
-        "InnerWallLongLogic"
+    auto* innerWall3Solid = new G4Box(
+        "InnerWall3",
+        6.75 * m,
+        0.1 * m,
+        2.0 * m
     );
 
-    auto* innerWallShortLogic = new G4LogicalVolume(
-        innerWallShortSolid,
+    auto* innerWall1Logic = new G4LogicalVolume(
+        innerWall1Solid,
         concrete,
-        "InnerWallShortLogic"
+        "InnerWall1Logic"
+    );
+
+    auto* innerWall2Logic = new G4LogicalVolume(
+        innerWall2Solid,
+        concrete,
+        "InnerWall2Logic"
+    );
+
+    auto* innerWall3Logic = new G4LogicalVolume(
+        innerWall3Solid,
+        concrete,
+        "InnerWall3Logic"
     );
 
     new G4PVPlacement(
         nullptr,
-        G4ThreeVector(-4.0 * m, -3.5 * m, 2.0 * m),
-        innerWallLongLogic,
+        G4ThreeVector(-5.0 * m, -1.5 * m, 2.0 * m),
+        innerWall1Logic,
         "wall_inner_1",
         worldLogic,
         false,
@@ -226,7 +239,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     new G4PVPlacement(
         nullptr,
         G4ThreeVector(4.0 * m, 4.0 * m, 2.0 * m),
-        innerWallLongLogic,
+        innerWall2Logic,
         "wall_inner_2",
         worldLogic,
         false,
@@ -240,7 +253,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     new G4PVPlacement(
         innerWall3Rot,
         G4ThreeVector(12.0 * m, -9.0 * m, 2.0 * m),
-        innerWallShortLogic,
+        innerWall3Logic,
         "wall_inner_3",
         worldLogic,
         false,
@@ -350,12 +363,12 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     };
 
     std::vector<CanisterPlacement> canisters = {
-        {G4ThreeVector(-17.0 * m, -5.0 * m, 0.89 * m), true,  0, "canister_1"},
+        {G4ThreeVector(-12.0 * m,-10.0 * m, 0.89 * m), true,  0, "canister_1"},
         {G4ThreeVector(  0.0 * m, -7.0 * m, 2.09 * m), false, 1, "canister_2"},
-        {G4ThreeVector( 17.0 * m,-12.0 * m, 2.09 * m), false, 2, "canister_3"},
-        {G4ThreeVector(-15.0 * m, 12.0 * m, 2.09 * m), false, 3, "canister_4"},
-        {G4ThreeVector(  0.0 * m, 12.0 * m, 2.09 * m), false, 4, "canister_5"},
-        {G4ThreeVector( 17.0 * m, 16.0 * m, 2.09 * m), false, 5, "canister_6"}
+        {G4ThreeVector( 14.0 * m,-12.0 * m, 2.09 * m), false, 2, "canister_3"},
+        {G4ThreeVector(-14.0 * m, 12.0 * m, 2.09 * m), false, 3, "canister_4"},
+        {G4ThreeVector(  0.0 * m, 11.0 * m, 2.09 * m), false, 4, "canister_5"},
+        {G4ThreeVector( 12.0 * m, 15.0 * m, 2.09 * m), false, 5, "canister_6"}
     };
 
     for (const auto& canister : canisters)
@@ -419,8 +432,9 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     wallSouthLogic->SetVisAttributes(concreteVis);
     wallEastLogic->SetVisAttributes(concreteVis);
     wallWestLogic->SetVisAttributes(concreteVis);
-    innerWallLongLogic->SetVisAttributes(concreteVis);
-    innerWallShortLogic->SetVisAttributes(concreteVis);
+    innerWall1Logic->SetVisAttributes(concreteVis);
+    innerWall2Logic->SetVisAttributes(concreteVis);
+    innerWall3Logic->SetVisAttributes(concreteVis);
 
     auto* steelVis = new G4VisAttributes(G4Colour(0.60, 0.62, 0.68, 0.75));
     steelVis->SetForceSolid(true);
