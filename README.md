@@ -50,12 +50,8 @@ descriptions are kept in sync by hand — see
    belief map of the field and (b) a grid-Bayes posterior over the single-source position and
    strength, plus a which-canister probability. An **active explorer** scores candidate goals with
    a UCB acquisition over that belief and drives Nav2 until the source estimate is tight,
-   confirmed up close, and reported.
-
-3. **Offline evaluation.** Missions are recorded as rosbags (`data/*_run`) and scored by
-   [ros2_ws/src/paper_eval](ros2_ws/src/paper_eval) against the Geant4 field: identification
-   correctness, localization error, coverage, time-to-plume-contact. Method and results:
-   [method.md](ros2_ws/src/paper_eval/method.md), [report.md](ros2_ws/src/paper_eval/report.md).
+   confirmed up close, and reported. Missions can be recorded as rosbags (`data/*_run`) for
+   offline analysis against the ground-truth field.
 
 #### Why a robot simulator at all?
 
@@ -81,7 +77,6 @@ search/mapping performance is evaluated on that.
 | [docker/](docker/) | Image build + container run scripts for Linux/WSL2 and macOS |
 | [ros2_ws/src/nuclear_robotics_sim/hello_stretch_sim_bringup](ros2_ws/src/nuclear_robotics_sim/hello_stretch_sim_bringup) | Top-level bringup: sim + Nav2 + radiation stack, `radiation_room` scene, maps |
 | [ros2_ws/src/nuclear_robotics_sim/nuclear_radiation_exploration](ros2_ws/src/nuclear_robotics_sim/nuclear_radiation_exploration) | Virtual radiation sensor, online mapper + source estimator, active explorer |
-| [ros2_ws/src/paper_eval](ros2_ws/src/paper_eval) | Rosbag evaluation (`eval_bag.py`), figures, method & results write-ups |
 | [geant_experiments/Geant4_own/basic_room_source](geant_experiments/Geant4_own/basic_room_source) | Custom Geant4 app: radiation room, leak model, field export |
 | [geant_experiments/Geant4_own/radfield_query](geant_experiments/Geant4_own/radfield_query) | Standalone field loader + active-mapping demos (no ROS needed) |
 | [data/](data/) | Baked fields, saved maps, recorded mission bags; leak inventory in [radiation_room_leak_config.md](data/radiation_room_leaks_07_07_2026/radiation_room_leak_config.md) |
@@ -213,10 +208,6 @@ leak position ± σ and the responsible canister — is published on `/radiation
 - Available fields (leak radius 0.1/0.2/0.5 m, different canisters, no-leak control) are catalogued
   in [radiation_room_leak_config.md](data/radiation_room_leaks_07_07_2026/radiation_room_leak_config.md).
 
-Algorithmic details and the honest list of assumptions/limitations are documented in
-[method.md](ros2_ws/src/paper_eval/method.md); quantitative results across leak sizes are in
-[report.md](ros2_ws/src/paper_eval/report.md).
-
 ### Build a map (2D SLAM)
 
 The base lidar publishes `LaserScan` on `/scan_filtered`; that plus odometry is all
@@ -324,12 +315,6 @@ Geant4 field (.npy, offline)                MuJoCo sim + Stretch robot (TF pose)
    node publishes the final claim — leak position ± σ and the responsible canister — on
    `/radiation/report`.
 
-Offline, [paper_eval/eval_bag.py](ros2_ws/src/paper_eval/eval_bag.py) replays the recorded mission
-bags against the ground-truth field and scores identification correctness, localization error,
-coverage, and time to plume contact. Every modelling shortcut in the pipeline (isotropic-emission
-assumption vs. the directional leak, wall-blind belief kernel, proximity-not-evidence
-confirmation, …) is catalogued honestly in [method.md](ros2_ws/src/paper_eval/method.md).
-
 ## Generating radiation fields (Geant4)
 
 The fields the sensor samples are baked by the custom Geant4 application in
@@ -359,13 +344,11 @@ Two properties worth knowing before comparing fields:
 - Canister positions are hardcoded in **both** `DetectorConstruction.cc` and
   `PrimaryGeneratorAction.cc`; moving one without the other silently breaks the shielding.
 
-## Recorded data & evaluation
+## Recorded data
 
 `data/` holds the baked fields, the saved `radiation_room` maps/pose-graphs, and recorded mission
 bags (`r01_run`, `r02_run`, `r05_run`, … — mcap rosbags of full autonomous missions at different
-leak sizes). The evaluation pipeline in [ros2_ws/src/paper_eval](ros2_ws/src/paper_eval)
-(`eval_bag.py`, `make_figures.py`) replays those bags against the corresponding ground-truth field
-and produces the metrics and figures reported in [report.md](ros2_ws/src/paper_eval/report.md).
+leak sizes).
 
 ## Verifying the Setup
 
