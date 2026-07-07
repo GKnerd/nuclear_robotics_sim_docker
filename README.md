@@ -9,6 +9,11 @@ an active exploration policy on top of Nav2, the robot autonomously **finds the 
 with an uncertainty estimate, and attributes it to the responsible canister** — all against
 ground-truth radiation fields produced by Geant4 Monte Carlo transport.
 
+> [!NOTE]
+> Large parts of this codebase — the radiation exploration stack, the Geant4 room application,
+> the evaluation pipeline, and the documentation — were **heavily AI-generated** (developed with
+> Claude Code) under human direction and review.
+
 ## Introduction
 
 <details open>
@@ -208,8 +213,7 @@ leak position ± σ and the responsible canister — is published on `/radiation
 - Available fields (leak radius 0.1/0.2/0.5 m, different canisters, no-leak control) are catalogued
   in [radiation_room_leak_config.md](data/radiation_room_leaks_07_07_2026/radiation_room_leak_config.md).
 
-Algorithmic details — the Poisson sensor model, grid-Bayes source filter, UCB scoring, and the
-honest list of assumptions/limitations — are documented in
+Algorithmic details and the honest list of assumptions/limitations are documented in
 [method.md](ros2_ws/src/paper_eval/method.md); quantitative results across leak sizes are in
 [report.md](ros2_ws/src/paper_eval/report.md).
 
@@ -272,6 +276,59 @@ the base via `/stretch/cmd_vel`.
 > `config/nav2_sim_overrides.yaml` last to retarget Nav2's odometry from the real robot's
 > `wheel_odom` frame/topic onto the sim's `odom` — without it `local_costmap`/`amcl` abort with
 > `Invalid frame ID "wheel_odom"`.
+
+## How the radiation analysis works
+
+The radiation stack is a one-directional pipeline of three ROS 2 nodes in
+[nuclear_radiation_exploration](ros2_ws/src/nuclear_robotics_sim/nuclear_radiation_exploration);
+the only feedback loop is through the robot's motion — goals change where measurements are taken.
+
+```
+Geant4 field (.npy, offline)                MuJoCo sim + Stretch robot (TF pose)
+        |                                                  |
+        v                                                  v
+ radiation_sensor  --/radiation/reading-->  radiation_mapper --------> radiation_explorer --> Nav2
+ (Poisson counts)                           (belief map + source posterior)   (UCB goal selection)
+```
+
+1. **Virtual sensor** (`radiation_sensor`). At 5 Hz it looks up the detector pose via TF, samples
+   the precomputed Geant4 field at that position (fixed 1.1 m detector height), and emits a
+   simulated count measurement `k ~ Poisson(kappa · dt · field_value)`. Publishing counts instead
+   of the smooth field value reproduces the physics of gamma counting: readings are better when
+   the robot dwells or moves slowly, so the downstream noise model refers to something real. The
+   message carries the noise-free truth value too, but only for evaluation — estimators never see it.
+
+2. **Belief mapper** (`radiation_mapper`, `GridEstimator2D`). A non-parametric grid of per-cell
+   (mean, variance) in `log10(1 + rate)` space — log because the field spans ~5 decades. Each
+   measurement updates nearby cells through a Gaussian correlation kernel with a Kalman-style
+   gain. This map makes no assumption about the field's shape; it drives exploration and the RViz
+   displays (`/radiation/map_mean`, `/radiation/map_variance`).
+
+3. **Source-term estimator** (`SourceBayesEstimator`, same node). A parametric, exact grid Bayes
+   filter over source hypotheses (x, y, log-strength) with a Poisson likelihood on the raw counts
+   and an inverse-square + wall-attenuation measurement model (rays marched through the SLAM
+   occupancy map). It turns "hottest cell so far" into "the leak is at (x, y) ± σ". A parallel
+   discrete posterior over the six known canister positions answers "*which* canister leaks"
+   (`/radiation/canister_probs`). Deliberate robustifications — likelihood tempering, bounded
+   per-reading influence, and a 3 m near-canister exclusion zone (up close, every canister shines
+   almost identically through its shell) — trade Bayesian purity for not collapsing onto the
+   wrong canister.
+
+4. **Active explorer** (`radiation_explorer`). Each replanning cycle it scores candidate goals on
+   the belief grid with an Upper-Confidence-Bound acquisition — a weighted sum of belief mean
+   (exploitation), footprint-averaged variance (exploration), and a pull toward the tightening
+   source estimate, divided by a travel discount. Candidates are filtered against the Nav2 global
+   costmap so the chosen goal is always reachable, then sent to Nav2 as a `NavigateToPose` action.
+   When the posterior is tight but the robot has never been near the claimed position, a confirm
+   phase drives it there; the mission ends when the estimate stays tight and stationary, and the
+   node publishes the final claim — leak position ± σ and the responsible canister — on
+   `/radiation/report`.
+
+Offline, [paper_eval/eval_bag.py](ros2_ws/src/paper_eval/eval_bag.py) replays the recorded mission
+bags against the ground-truth field and scores identification correctness, localization error,
+coverage, and time to plume contact. Every modelling shortcut in the pipeline (isotropic-emission
+assumption vs. the directional leak, wall-blind belief kernel, proximity-not-evidence
+confirmation, …) is catalogued honestly in [method.md](ros2_ws/src/paper_eval/method.md).
 
 ## Generating radiation fields (Geant4)
 
