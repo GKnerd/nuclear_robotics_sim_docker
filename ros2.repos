@@ -10,4 +10,7 @@ repositories:
     type: git
     url: https://github.com/GKnerd/nuclear_robotics_sim.git
     version: main
-
+  nuclear_radiation_exploration
+    type: git
+    url: https://github.com/GKnerd/nuclear_radiation_exploration.git
+    version: main

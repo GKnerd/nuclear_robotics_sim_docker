@@ -24,7 +24,7 @@ namespace LeakConfig
     // 3 = canister_4
     // 4 = canister_5
     // 5 = canister_6
-    constexpr int leakyCanisterIndex = 4;
+    constexpr int leakyCanisterIndex = 3;
 
     // Leak position in local cylindrical coordinates.
     // theta = 0 deg   -> +x side
@@ -35,12 +35,12 @@ namespace LeakConfig
 
     // Local z coordinate along canister axis.
     // For vertical canisters, z=0 is the center height.
-    constexpr double leakLocalZ_m = 0;
+    constexpr double leakLocalZ_m = -1.0;
 
     // Leak cutter dimensions.
     // Radius for controlling radial cutout dimension
     // Depth for controlling how far the cutout extends into the canister wall
-    constexpr double leakRadius_m = 0.05;
+    constexpr double leakRadius_m = 0.5;
     constexpr double leakHalfDepth_m = 0.60;
 }
 
